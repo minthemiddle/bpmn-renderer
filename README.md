@@ -55,7 +55,8 @@ A web-based BPMN (Business Process Model and Notation) viewer built using bpmn-j
 bpmn-viewer/
 ├── bpmns/                  # Directory for BPMN files
 │   ├── marketing.bpmn      # Example BPMN file
-│   └── seo.bpmn            # Example BPMN file
+│   ├── seo.bpmn            # Example BPMN file
+│   └── files.json          # List of available BPMN files
 ├── index.html              # Main application file
 └── README.md               # This documentation
 ```
@@ -71,13 +72,15 @@ bpmn-viewer/
 ### Adding New BPMN Files
 
 1. Place your `.bpmn` files in the `bpmns` folder
-2. Update the `loadBpmnFiles()` function in `index.html` to include your new files:
-   ```javascript
-   const files = [
-     'marketing.bpmn',
-     'seo.bpmn',
-     'your-new-file.bpmn'
-   ];
+2. Update the `bpmns/files.json` file to include your new files:
+   ```json
+   {
+     "files": [
+       "marketing.bpmn",
+       "seo.bpmn",
+       "your-new-file.bpmn"
+     ]
+   }
    ```
 
 ### Styling
