@@ -170,16 +170,12 @@
 
     async function loadBpmnFiles() {
       try {
-        // Fetch directory listing from server
-        const response = await fetch('/bpmns/');
-        const text = await response.text();
-        
-        // Parse HTML response to find .bpmn files
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(text, 'text/html');
-        const links = Array.from(doc.querySelectorAll('a'))
-          .map(a => a.textContent)
-          .filter(name => name.endsWith('.bpmn'));
+        // Fetch list of BPMN files from our API endpoint
+        const response = await fetch('/api/bpmn-files');
+        if (!response.ok) {
+          throw new Error('Failed to fetch BPMN files list');
+        }
+        const files = await response.json();
         
         log(`Found ${links.length} BPMN files: ${links.join(', ')}`);
 
