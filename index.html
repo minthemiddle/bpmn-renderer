@@ -170,13 +170,18 @@
 
     async function loadBpmnFiles() {
       try {
-        // Hardcoded list of BPMN files in the bpmns folder
-        const files = [
-          'marketing.bpmn',
-          'seo.bpmn'
-        ];
+        // Fetch directory listing from server
+        const response = await fetch('/bpmns/');
+        const text = await response.text();
         
-        log(`Found ${files.length} BPMN files: ${files.join(', ')}`);
+        // Parse HTML response to find .bpmn files
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        const links = Array.from(doc.querySelectorAll('a'))
+          .map(a => a.textContent)
+          .filter(name => name.endsWith('.bpmn'));
+        
+        log(`Found ${links.length} BPMN files: ${links.join(', ')}`);
 
         const select = document.getElementById('js-bpmn-select');
         
@@ -190,7 +195,7 @@
         select.appendChild(defaultOption);
 
         // Add file options
-        files.forEach(file => {
+        links.forEach(file => {
           const option = document.createElement('option');
           option.value = `bpmns/${file}`;
           option.textContent = file;
