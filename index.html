@@ -170,14 +170,18 @@
 
     async function loadBpmnFiles() {
       try {
-        // Fetch list of BPMN files from our API endpoint
-        const response = await fetch('/api/bpmn-files');
-        if (!response.ok) {
-          throw new Error('Failed to fetch BPMN files list');
-        }
-        const files = await response.json();
+        // Fetch the bpmns directory listing
+        const response = await fetch('bpmns/');
+        const text = await response.text();
         
-        log(`Found ${links.length} BPMN files: ${links.join(', ')}`);
+        // Parse the directory listing to find .bpmn files
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        const files = Array.from(doc.querySelectorAll('a'))
+          .map(a => a.textContent)
+          .filter(name => name.endsWith('.bpmn'));
+        
+        log(`Found ${files.length} BPMN files: ${files.join(', ')}`);
 
         const select = document.getElementById('js-bpmn-select');
         
@@ -191,7 +195,7 @@
         select.appendChild(defaultOption);
 
         // Add file options
-        links.forEach(file => {
+        files.forEach(file => {
           const option = document.createElement('option');
           option.value = `bpmns/${file}`;
           option.textContent = file;
