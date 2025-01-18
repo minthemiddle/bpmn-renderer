@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<head>
+  <title>bpmn-js url viewer demo</title>
+
+  <!-- required viewer styles -->
+  <link rel="stylesheet" href="https://unpkg.com/bpmn-js@18.1.2/dist/assets/bpmn-js.css">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    .header input[type=text] {
+      width: 500px;
+      max-width: 100%;
+    }
+
+    .header button {
+      margin: 0 2px;
+    }
+
+    .console textarea {
+      width: 100%;
+      min-height: 80px;
+      border: none;
+      padding: 0;
+    }
+
+    .canvas {
+      border: solid 1px black;
+      height: calc(100vh - 200px);
+      min-height: 600px;
+      margin-bottom: 20px;
+    }
+
+    .console {
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+
+    .console textarea {
+      width: 100%;
+      min-height: 80px;
+      max-height: 35vh;
+      border: none;
+      padding: 0;
+      resize: vertical;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h3>Select BPMN 2.0 diagram</h3>
+    <p>
+      <select id="js-bpmn-select">
+        <option value="">-- Loading diagrams... --</option>
+      </select>
+      <button id="js-open">Open</button>
+      <button id="js-zoom-in">+</button>
+      <button id="js-zoom-out">-</button>
+      <button id="js-zoom-fit">Fit</button>
+    </p>
+  </div>
+
+  <div class="canvas">
+    <div id="js-canvas"></div>
+  </div>
+
+  <details class="console">
+    <summary>Console</summary>
+    <textarea id="js-console"></textarea>
+  </details>
+
+  <!-- viewer -->
+  <script src="https://unpkg.com/bpmn-js@18.1.2/dist/bpmn-viewer.development.js"></script>
+
+  <!-- app -->
+
+  <script>
+    var viewer = new BpmnJS({
+      container: document.getElementById('js-canvas'),
+      height: 600
+    });
+
+    // Function to get viewport center
+    function getViewportCenter() {
+      const canvas = viewer.get('canvas');
+      const viewbox = canvas.viewbox();
+      return {
+        x: viewbox.x + viewbox.width / 2,
+        y: viewbox.y + viewbox.height / 2
+      };
+    }
+
+    // Function to center the diagram in the viewport
+    function centerDiagram() {
+      const canvas = viewer.get('canvas');
+      const viewbox = canvas.viewbox();
+      const container = document.getElementById('js-canvas');
+      const containerBounds = container.getBoundingClientRect();
+      
+      // Get the diagram's bounding box
+      const bbox = canvas.getDefaultLayer().getBBox();
+      
+      // Calculate center position
+      const centerX = bbox.x + bbox.width / 2;
+      const centerY = bbox.y + bbox.height / 2;
+      
+      // Set the viewbox centered on the diagram
+      canvas.viewbox({
+        x: centerX - viewbox.width / 2,
+        y: centerY - viewbox.height / 2,
+        width: viewbox.width,
+        height: viewbox.height
+      });
+    }
+
+    // Enable panning
+    let isPanning = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    const canvasElement = document.getElementById('js-canvas');
+    
+    canvasElement.addEventListener('mousedown', function(e) {
+      if (e.button === 0) { // Left mouse button
+        isPanning = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        canvasElement.style.cursor = 'grabbing';
+      }
+    });
+
+    canvasElement.addEventListener('mousemove', function(e) {
+      if (isPanning) {
+        const canvas = viewer.get('canvas');
+        const viewbox = canvas.viewbox();
+        
+        const deltaX = e.clientX - lastX;
+        const deltaY = e.clientY - lastY;
+        
+        canvas.scroll({
+          dx: deltaX / viewbox.scale,
+          dy: deltaY / viewbox.scale
+        });
+
+        lastX = e.clientX;
+        lastY = e.clientY;
+      }
+    });
+
+    canvasElement.addEventListener('mouseup', function() {
+      isPanning = false;
+      canvasElement.style.cursor = 'grab';
+    });
+
+    canvasElement.addEventListener('mouseleave', function() {
+      isPanning = false;
+      canvasElement.style.cursor = 'grab';
+    });
+
+    // Set initial cursor style
+    canvasElement.style.cursor = 'grab';
+
+    function log(str) {
+      var console = document.getElementById('js-console');
+      console.value = console.value + str + '\n';
+    }
+
+    async function loadBpmnFiles() {
+      try {
+        // Hardcoded list of BPMN files in the bpmns folder
+        const files = [
+          'marketing.bpmn',
+          'seo.bpmn'
+        ];
+        
+        log(`Found ${files.length} BPMN files: ${files.join(', ')}`);
+
+        const select = document.getElementById('js-bpmn-select');
+        
+        // Clear loading message
+        select.innerHTML = '';
+        
+        // Add default option
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = '-- Select a diagram --';
+        select.appendChild(defaultOption);
+
+        // Add file options
+        files.forEach(file => {
+          const option = document.createElement('option');
+          option.value = `bpmns/${file}`;
+          option.textContent = file;
+          select.appendChild(option);
+        });
+        
+        log('Dropdown populated successfully');
+      } catch (err) {
+        log('Error loading BPMN files: ' + err.message);
+        console.error('Error details:', err);
+      }
+    }
+
+    async function openDiagram(path) {
+      if (!path) {
+        log('Please select a diagram');
+        return;
+      }
+
+      log('Attempting to open <' + path + '>');
+
+      try {
+        const response = await fetch(path);
+        const xml = await response.text();
+
+        try {
+          await viewer.importXML(xml);
+          viewer.get('canvas').zoom('fit-viewport');
+          centerDiagram();
+          log('success');
+        } catch (err) {
+          log('error: ' + err.message);
+          console.error(err);
+        }
+      } catch (err) {
+        log('Failed to fetch diagram: ' + err.message);
+        console.error(err);
+      }
+    }
+
+    document.getElementById('js-open').addEventListener('click', function() {
+      const path = document.getElementById('js-bpmn-select').value;
+      openDiagram(path);
+    });
+
+    // Zoom controls
+    document.getElementById('js-zoom-in').addEventListener('click', function() {
+      const canvas = viewer.get('canvas');
+      const viewbox = canvas.viewbox();
+      const newZoom = viewbox.scale * 1.2;
+      const viewportCenter = getViewportCenter();
+      
+      canvas.zoom(newZoom, viewportCenter);
+    });
+
+    document.getElementById('js-zoom-out').addEventListener('click', function() {
+      const canvas = viewer.get('canvas');
+      const viewbox = canvas.viewbox();
+      const newZoom = Math.max(0.2, viewbox.scale * 0.8);
+      const viewportCenter = getViewportCenter();
+      
+      canvas.zoom(newZoom, viewportCenter);
+    });
+
+    document.getElementById('js-zoom-fit').addEventListener('click', function() {
+      viewer.get('canvas').zoom('fit-viewport');
+      centerDiagram();
+    });
+
+    // Initialize
+    loadBpmnFiles();
+  </script>
+</html>
